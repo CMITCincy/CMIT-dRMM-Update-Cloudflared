@@ -1,11 +1,11 @@
 <#
 CMIT-dRMM-Update-Cloudflared.ps1
 pellis@cmitsolutions.com
-2025.12.11.001
+2025.12.11.002
 
 Behavior: check version, run update, detect .exe.new, stop/swap/start, show version after.
 
-Changelog: initial version
+Changelog: fixing stuff
 
 #>
 
@@ -18,15 +18,6 @@ function Resolve-CloudflaredPath {
   if ($img -match '^"([^"]+\.exe)"') { return $Matches[1] }
   elseif ($img -match '^(?<path>[^\s]+\.exe)') { return $Matches['path'] }
   else { throw "Unable to parse ImagePath for service 'cloudflared': $img" }
-}
-
-function Get-CloudflaredVersion {
-  param([string]$ExePath)
-  try {
-    $out = & $ExePath version 2>&1
-    if (-not $out) { $out = (& $ExePath --version 2>&1) -or (& $ExePath version --short 2>&1) }
-    return ($out | Out-String).Trim()
-  } catch { return "Unknown (error: $($_.Exception.Message))" }
 }
 
 function Stop-CloudflaredService {
@@ -65,17 +56,14 @@ try {
   $oldPath = Join-Path $folder ($exeName + '.old')
 
   Write-Host "cloudflared executable: $exePath"
-  $verBefore = Get-CloudflaredVersion -ExePath $exePath
+
+  # Version BEFORE
+  $verBefore = & $exePath version
   Write-Host "Version BEFORE: $verBefore"
 
-  # Try update (support both syntaxes)
+  # Try update
   Write-Host "Running 'cloudflared update'..."
-  $updateOut = & $exePath update 2>&1
-  if (-not $updateOut) {
-    Write-Host "No output from 'cloudflared update'; trying '--update'..."
-    $updateOut = & $exePath --update 2>&1
-  }
-  if ($updateOut) { Write-Host ($updateOut | Out-String) }
+  & $exePath update 2>$nul
 
   Start-Sleep -Seconds 3
 
@@ -108,11 +96,13 @@ try {
     }
   }
 
-  $verAfter = Get-CloudflaredVersion -ExePath $exePath
+
+  # Version AFTER
+  $verAfter = & $exePath version
   Write-Host "Version AFTER:  $verAfter"
   Write-Host "Update workflow complete."
 
 } catch {
   Write-Error "Update failed: $($_.Exception.Message)"
-  exit 1
+  #exit 1
 }
