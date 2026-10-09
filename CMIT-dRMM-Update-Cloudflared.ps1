@@ -1,4 +1,3 @@
-
 <#
 CMIT-dRMM-Update-Cloudflared.ps1
 pellis@cmitsolutions.com
